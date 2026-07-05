@@ -1,0 +1,16 @@
+# Foundry build artifacts
+out/
+cache/
+broadcast/
+
+# Env files (nunca commitear secretos)
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+
+# OS / editor
+.DS_Store
+*.log
