@@ -10,11 +10,11 @@ dataSources:
     name: RwaVault
     network: sepolia
     source:
-      # Placeholder — the deploying session fills this in with the real proxy
-      # address + deployment block right after `forge script` deploy/verify.
-      address: "0x0000000000000000000000000000000000000000"
+      # RwaVault proxy (ERC1967/UUPS) — deployed+verified 2026-07-06, see
+      # contracts/deployments/sepolia.json
+      address: "0x48c78Ffe5A882069FC81Fb866510FAAE625109C4"
       abi: RwaVault
-      startBlock: 0
+      startBlock: 11217752
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -41,12 +41,10 @@ dataSources:
     name: RwaNavFeed
     network: sepolia
     source:
-      # Placeholder — same as above, filled in post-deploy. RwaNavFeed is deployed
-      # separately from the vault proxy (ARCHITECTURE.md §3.2), so it gets its own
-      # address + startBlock once known.
-      address: "0x0000000000000000000000000000000000000000"
+      # RwaNavFeed — deployed+verified 2026-07-06, see contracts/deployments/sepolia.json
+      address: "0x8805250663BAE305b3891A11Ca888200EdB161d7"
       abi: RwaNavFeed
-      startBlock: 0
+      startBlock: 11217752
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

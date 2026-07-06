@@ -1,0 +1,54 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployedAt": "2026-07-06",
+  "deployBlock": 11217752,
+  "deployer": "0x40b282c45EE5667fB72b4D37a676A0110cEe36d5",
+  "contracts": {
+    "DemoUSDC": {
+      "address": "0x6E48f460b802F3777C5aC4339899EcA071Acd721",
+      "txHash": "0x954777bda9196d4b5e805fe221b3ac84914bbdd9af8a0f93408747993472cc7c",
+      "verified": true,
+      "note": "Asset de demo (6 dec, faucet capado a 10k por llamada). Un deploy real apunta initialize() al USDC canonico de la chain y saltea este contrato."
+    },
+    "TBillToken": {
+      "address": "0xa68C7381e4B0f539659f57b2a140B858828e2321",
+      "txHash": "0xb0ae7883a68741409d38aedbde10bb972aac21048232de0e72d204cff308c2b1",
+      "verified": true
+    },
+    "RwaNavFeed": {
+      "address": "0x8805250663BAE305b3891A11Ca888200EdB161d7",
+      "txHash": "0xbbc5eef733534ff2f6b4a26850aee60eeb9d7103d3e87f6431f3c1059ebd9638",
+      "verified": true,
+      "initialNav": "100e8 (100.00000000, 8 decimales estilo Chainlink)"
+    },
+    "RwaVault_implementation_v1": {
+      "address": "0xC5EF4730F4A50e0b5cfbBF9ECf3Bb7dD41A5971E",
+      "txHash": "0xfd288806a153a8aa5918e7582922ed6222d290de4de41c188b1d2dcaa1b91cb0",
+      "verified": true
+    },
+    "RwaVault_proxy": {
+      "address": "0x48c78Ffe5A882069FC81Fb866510FAAE625109C4",
+      "txHash": "0xd80123ae4456d160b5a40cbebcc765464421211becc899007182cee8b6f4efe0",
+      "verified": true,
+      "note": "ERC1967Proxy (UUPS). Esta es LA direccion del protocolo: sobrevivio el upgrade V1->V2 sin cambiar."
+    },
+    "RwaVaultV2_implementation": {
+      "address": "0x9f19d8Ca2C42Cff754500227f677B8AD81Be2b23",
+      "txHash": "0xa42a4c94f41756ec0e84986c61160c0277e0538d57aeeb313642d7fef1844594",
+      "verified": true,
+      "feeBps": 100,
+      "feeRecipient": "0x40b282c45EE5667fB72b4D37a676A0110cEe36d5"
+    }
+  },
+  "liveUpgrade": {
+    "txHash": "0xa1fe2ef0ab9eab7820aecfe9f4d2eb2ce8e297eb0bea04e6bd4a17effca2bf1a",
+    "what": "upgradeToAndCall(V2, initializeV2(100, deployer)) — upgrade UUPS ejecutado EN VIVO sobre el proxy con estado real",
+    "proof": {
+      "implSlotBefore": "0x...c5ef4730f4a50e0b5cfbbf9ecf3bb7dd41a5971e (V1)",
+      "implSlotAfter": "0x...9f19d8ca2c42cff754500227f677b8ad81be2b23 (V2)",
+      "statePreserved": "shares del seed (1e15) + totalAssets (1000e6 dUSDC) + roles intactos post-upgrade, verificado con cast"
+    }
+  },
+  "seedLifecycle": "faucet 1000 dUSDC -> approve -> requestDeposit -> fulfillDeposit -> claim (5 txs status 1) ANTES del upgrade: el estado que el upgrade tenia que preservar, y preservo."
+}
