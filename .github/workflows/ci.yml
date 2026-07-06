@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  schedule:
+    # Lunes 06:00 UTC — corre la suite lenta completa (invariants + fork test contra
+    # Sepolia real) una vez por semana, fuera del camino crítico de cada push/PR.
+    - cron: '0 6 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  contracts:
+    name: Contratos (Foundry) — build + unit/fuzz/attacks, sin invariants ni fork
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Instalar Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build (solc pinneado en foundry.toml)
+        run: forge build
+
+      # Se excluyen test/invariants/** y test/fork/** de la corrida de cada push/PR:
+      #
+      # - invariants/: la campaña multi-actor (RwaVaultHandler, 256 runs x profundidad
+      #   default) tarda ~3-4 minutos localmente. Es la suite que en D3 encontró el
+      #   hallazgo (c) — no se recorta por desconfianza, se recorta porque en un
+      #   runner compartido esos minutos son fricción en CADA push sin ganancia real:
+      #   el resultado no cambia entre commits que no tocan src/ ni los tests propios.
+      #   Corre completa, sin recortar, en el job "slow-tests" de abajo (semanal).
+      #
+      # - fork/: requieren un RPC real de Sepolia (consumen el feed Chainlink ETH/USD
+      #   en vivo, ver test/fork/RwaVault.fork.t.sol). Un RPC público puede rate-
+      #   limitear o caerse en cualquier momento — no queremos que eso tiña de rojo
+      #   un PR que no tocó nada relacionado al oráculo. Mismo tratamiento: corren
+      #   completos en el job semanal, donde un fallo transitorio de RPC no bloquea
+      #   a nadie que esté esperando un merge.
+      - name: Tests (unit + fuzz + attacks, sin invariants ni fork)
+        run: forge test --no-match-path "test/{invariants,fork}/**"
+
+  slow-tests:
+    name: Suite completa semanal (invariants 256 runs + fork test Sepolia real)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Instalar Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Build
+        run: forge build
+
+      # Suite entera, sin exclusiones: invariants (multi-actor, 256 runs) + fork
+      # (RPC público de Sepolia) + todo lo que ya corre en el job rápido.
+      - name: Tests completos (incluye invariants + fork)
+        run: forge test -vv
+
+  dapp:
+    name: dApp (Vite + React + wagmi)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dapp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 24 = mismo entorno que generó dapp/package-lock.json (npm 11); Node 22 /
+          # npm 10 materializa distinto los peers opcionales y `npm ci` falla ahí
+          # (misma lección de PULSO — ver pulso-exchange/.github/workflows/ci.yml).
+          node-version: 24
+          cache: npm
+          cache-dependency-path: dapp/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build (tsc -b + vite build)
+        run: npm run build

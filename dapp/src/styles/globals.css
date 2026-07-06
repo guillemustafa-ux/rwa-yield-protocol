@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+/*
+ * RWA Yield Protocol — design tokens.
+ *
+ * Tema único, oscuro, sobrio: esto es un protocolo institucional (T-bill
+ * tokenizado, NAV accounting), no un exchange retail — paleta slate/azul
+ * profundo con UN acento, sin degradés neón ni glow. Tailwind v4 config
+ * "CSS-first": los tokens viven acá en `@theme` y se consumen como
+ * utilities normales (`bg-surface-1`, `text-accent`, etc.).
+ */
+@theme {
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+
+  --color-bg-void: #090c12;
+  --color-bg-deep: #0d111a;
+  --color-surface-1: #121826;
+  --color-surface-2: #1a2233;
+  --color-surface-3: #232c40;
+
+  --color-border-subtle: #1e2534;
+  --color-border-default: #2a3346;
+  --color-border-emphasis: #3a4560;
+
+  --color-text-primary: #e7ebf3;
+  --color-text-secondary: #a4adc2;
+  --color-text-tertiary: #6f7890;
+  --color-text-muted: #4c5468;
+
+  --color-accent: #4c7cf0;
+  --color-accent-strong: #6f95f5;
+  --color-accent-dim: #2c4a94;
+
+  --color-positive: #3fae6a;
+  --color-negative: #d5615f;
+  --color-warning: #c8973f;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-bg-void);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-dim);
+    color: var(--color-text-primary);
+  }
+}
