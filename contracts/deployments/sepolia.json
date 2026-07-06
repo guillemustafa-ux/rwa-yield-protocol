@@ -35,15 +35,16 @@
     },
     "RwaVaultV2_implementation": {
       "address": "0x9f19d8Ca2C42Cff754500227f677B8AD81Be2b23",
-      "txHash": "0xa42a4c94f41756ec0e84986c61160c0277e0538d57aeeb313642d7fef1844594",
+      "txHash": "0xa1fe2ef0ab9eab7820aecfe9f4d2eb2ce8e297eb0bea04e6bd4a17effca2bf1a",
       "verified": true,
       "feeBps": 100,
-      "feeRecipient": "0x40b282c45EE5667fB72b4D37a676A0110cEe36d5"
+      "feeRecipient": "0x40b282c45EE5667fB72b4D37a676A0110cEe36d5",
+      "note": "Contract creation de la implementation V2 (to vacío, contractAddress=esta dirección)."
     }
   },
   "liveUpgrade": {
-    "txHash": "0xa1fe2ef0ab9eab7820aecfe9f4d2eb2ce8e297eb0bea04e6bd4a17effca2bf1a",
-    "what": "upgradeToAndCall(V2, initializeV2(100, deployer)) — upgrade UUPS ejecutado EN VIVO sobre el proxy con estado real",
+    "txHash": "0xa42a4c94f41756ec0e84986c61160c0277e0538d57aeeb313642d7fef1844594",
+    "what": "upgradeToAndCall(V2, initializeV2(100, deployer)) — upgrade UUPS ejecutado EN VIVO sobre el proxy con estado real (to=proxy, logs Upgraded+Initialized(2)+ManagementFeeInitialized)",
     "proof": {
       "implSlotBefore": "0x...c5ef4730f4a50e0b5cfbbf9ecf3bb7dd41a5971e (V1)",
       "implSlotAfter": "0x...9f19d8ca2c42cff754500227f677b8ad81be2b23 (V2)",
