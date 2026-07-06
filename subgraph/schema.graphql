@@ -1,0 +1,120 @@
+# RWA Yield Protocol — subgraph schema
+#
+# Entities map 1:1 to the events actually emitted by contracts/src/RwaVault.sol and
+# contracts/src/RwaNavFeed.sol (ARCHITECTURE.md §6 D4). See README.md for the
+# publish flow and mappings/rwa-vault.ts + mappings/rwa-nav-feed.ts for the handlers.
+#
+# NOTE on the daily `totalAssets()` snapshot asked for in the task brief:
+# `totalAssets()` = tBILL holdings (in RwaVault) valued at the live NAV (RwaNavFeed)
+# + the free asset buffer. The NAV leg IS event-derivable (`NavUpdated`), but the
+# tBILL holdings leg is NOT: `RwaVault` never calls `TBillToken.mint`/`burn` itself
+# (see RwaVault.sol NatSpec point 4) — that mint/burn happens inside `TBillToken`,
+# a THIRD contract outside this task's scope (only RwaVault + RwaNavFeed events were
+# provided). `AssetInvested`/`AssetDivested` only tell us the USDC leg left/returned
+# to fund an off-chain purchase, not how much tBILL was actually acquired at what
+# price. Reconstructing a faithful `totalAssets()` time series would require either
+# (a) indexing TBillToken's own Transfer events to the vault address (out of scope
+# here), or (b) an `eth_call` block handler polling `RwaVault.totalAssets()` directly
+# (technically possible, but not "derivable from events" — and a fixed-cadence block
+# handler is a different indexing primitive with its own perf/cost trade-offs that
+# the D4 brief did not ask to introduce). Per the task instructions, the
+# `VaultDailySnapshot` entity is therefore OMITTED rather than built on a shaky
+# approximation. If a future day wants it, the honest options are (a) or (b) above.
+
+"""
+One `RwaVault.DepositRequest` event — a controller/owner requested a deposit of
+`assets`. Funds already left `owner`'s wallet at this point and sit pending until
+an `OPERATOR_ROLE` account calls `fulfillDeposit`.
+"""
+type DepositRequest @entity(immutable: true) {
+  "txHash-logIndex"
+  id: ID!
+  "The 7540 controller that will own the resulting pending/claimable bucket"
+  controller: Bytes!
+  "The account whose assets were pulled"
+  owner: Bytes!
+  "Always 0 — this vault uses the aggregated (requestId=0) ERC-7540 model"
+  requestId: BigInt!
+  "msg.sender of requestDeposit (may differ from owner if called via an operator)"
+  sender: Bytes!
+  "Amount of the underlying asset requested for deposit"
+  assets: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+"""
+One `RwaVault.RedeemRequest` event — a controller/owner requested a redemption of
+`shares`. Shares already moved into vault custody at this point and sit pending
+until an `OPERATOR_ROLE` account calls `fulfillRedeem`.
+"""
+type RedeemRequest @entity(immutable: true) {
+  "txHash-logIndex"
+  id: ID!
+  controller: Bytes!
+  owner: Bytes!
+  "Always 0 — aggregated (requestId=0) ERC-7540 model"
+  requestId: BigInt!
+  sender: Bytes!
+  "Amount of shares requested for redemption"
+  shares: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+"""
+One `RwaVault.DepositFulfilled` event — `OPERATOR_ROLE` settled (all or part of) a
+controller's pending deposit at the NAV/share price prevailing at that moment.
+Shares are fixed here (not at request time) per ARCHITECTURE.md §3.3.
+"""
+type DepositFulfilled @entity(immutable: true) {
+  "txHash-logIndex"
+  id: ID!
+  controller: Bytes!
+  "Assets moved from pendingDeposit into claimableDepositAssets"
+  assets: BigInt!
+  "Shares minted to vault custody, moved into claimableDepositShares"
+  shares: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+"""
+One `RwaVault.RedeemFulfilled` event — `OPERATOR_ROLE` settled (all or part of) a
+controller's pending redeem: burned the custodied shares and earmarked the asset
+at the NAV/share price prevailing at that moment.
+"""
+type RedeemFulfilled @entity(immutable: true) {
+  "txHash-logIndex"
+  id: ID!
+  controller: Bytes!
+  "Shares burned from pendingRedeem"
+  shares: BigInt!
+  "Assets earmarked into claimableRedeemAssets"
+  assets: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+"""
+One `RwaNavFeed.NavUpdated` event — a new NAV round published by `NAV_UPDATER_ROLE`,
+already past the feed's own deviation-band (±5%) and rate-limit (1h) guards
+(RwaNavFeed.sol NatSpec).
+"""
+type NavUpdate @entity(immutable: true) {
+  "txHash-logIndex"
+  id: ID!
+  "Chainlink-style round id (RwaNavFeed.latestRoundId), monotonically increasing"
+  roundId: BigInt!
+  "NAV value published, 8 decimals (RwaNavFeed.decimals())"
+  nav: BigInt!
+  "Timestamp the feed itself recorded for this round (== block.timestamp at publish)"
+  updatedAt: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}

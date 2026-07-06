@@ -1,0 +1,18 @@
+{
+  "name": "rwa-yield-protocol-subgraph",
+  "version": "0.0.1",
+  "private": true,
+  "description": "The Graph subgraph for RWA Yield Protocol (RwaVault + RwaNavFeed, Sepolia)",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "auth": "graph auth",
+    "deploy": "graph deploy rwa-yield-protocol"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-ts": "0.38.2"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "0.98.1"
+  }
+}

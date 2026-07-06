@@ -1,0 +1,6 @@
+# graph-cli generated/compiled artifacts — regenerate with `npm run codegen` / `npm run build`
+generated/
+build/
+
+# Node
+node_modules/

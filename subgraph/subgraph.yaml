@@ -1,0 +1,62 @@
+specVersion: 1.3.0
+description: >-
+  RWA Yield Protocol — indexes RwaVault (ERC-7540 async vault, NAV-priced) and
+  RwaNavFeed (Chainlink-compatible NAV oracle) on Sepolia. See ARCHITECTURE.md §6 D4.
+repository: https://github.com/guillemustafa-ux/rwa-yield-protocol
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: RwaVault
+    network: sepolia
+    source:
+      # Placeholder — the deploying session fills this in with the real proxy
+      # address + deployment block right after `forge script` deploy/verify.
+      address: "0x0000000000000000000000000000000000000000"
+      abi: RwaVault
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - DepositRequest
+        - RedeemRequest
+        - DepositFulfilled
+        - RedeemFulfilled
+      abis:
+        - name: RwaVault
+          file: ./abis/RwaVault.json
+      eventHandlers:
+        - event: DepositRequest(indexed address,indexed address,indexed uint256,address,uint256)
+          handler: handleDepositRequest
+        - event: RedeemRequest(indexed address,indexed address,indexed uint256,address,uint256)
+          handler: handleRedeemRequest
+        - event: DepositFulfilled(indexed address,uint256,uint256)
+          handler: handleDepositFulfilled
+        - event: RedeemFulfilled(indexed address,uint256,uint256)
+          handler: handleRedeemFulfilled
+      file: ./src/rwa-vault.ts
+  - kind: ethereum
+    name: RwaNavFeed
+    network: sepolia
+    source:
+      # Placeholder — same as above, filled in post-deploy. RwaNavFeed is deployed
+      # separately from the vault proxy (ARCHITECTURE.md §3.2), so it gets its own
+      # address + startBlock once known.
+      address: "0x0000000000000000000000000000000000000000"
+      abi: RwaNavFeed
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - NavUpdate
+      abis:
+        - name: RwaNavFeed
+          file: ./abis/RwaNavFeed.json
+      eventHandlers:
+        - event: NavUpdated(indexed uint80,int256,uint256)
+          handler: handleNavUpdated
+      file: ./src/rwa-nav-feed.ts
