@@ -217,6 +217,14 @@ contract RwaVault is
     /// @notice `investInTBill` requested more than {_freeAssetBuffer} has available.
     error InsufficientFreeBuffer(uint256 requested, uint256 available);
 
+    /// @notice `fulfillRedeem` would commit more assets than the vault holds liquid.
+    /// @dev Hallazgo (c) de la campaña de invariantes del D3: sin este cap, el operador
+    /// podía fijar un claim valuado por NAV contra holdings ilíquidos de tBILL — una
+    /// promesa sin respaldo cuyo `claim` posterior revertía en la cara del usuario.
+    /// La regla operativa real de los vaults RWA ("divest primero, fulfill después")
+    /// se fuerza acá on-chain en vez de confiarse a un runbook.
+    error InsufficientLiquidity(uint256 requested, uint256 available);
+
     // ------------------------------------------------------------------
     // Construction / initialization
     // ------------------------------------------------------------------
@@ -425,6 +433,13 @@ contract RwaVault is
         if (shares > pendingRedeem[controller]) revert ExceedsPending();
 
         assets = convertToAssets(shares);
+
+        // Cap de liquidez (hallazgo (c), invariantes D3): solo se puede prometer lo que
+        // hay líquido y no reservado. _freeAssetBuffer ya descuenta los depósitos
+        // pendientes y los claims de redeem previos, así que este chequeo garantiza que
+        // todo claimableRedeemAssets queda 100% respaldado por asset en el vault.
+        uint256 available = _freeAssetBuffer();
+        if (assets > available) revert InsufficientLiquidity(assets, available);
 
         pendingRedeem[controller] -= shares;
         _burn(address(this), shares);

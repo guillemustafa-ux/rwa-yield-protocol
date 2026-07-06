@@ -575,9 +575,24 @@ contract RwaVaultTest is Test {
         assertEq(tBillToken.balanceOf(address(vault)), tBillBalanceBefore); // no transfer
         assertEq(asset.balanceOf(address(vault)), usdcBalanceBefore); // no transfer
 
-        // 4) Alice redeems ALL her shares. fulfillRedeem prices them at the NEW NAV.
+        // 4) Alice redeems ALL her shares.
         vm.prank(alice);
         vault.requestRedeem(shares, alice, alice);
+
+        // 5) Cap de liquidez (hallazgo (c), campaña de invariantes D3): fulfillRedeem ya
+        //    NO puede prometer contra tBILL ilíquido, así que el test modela el flujo de
+        //    settlement real — el manager vende la posición off-chain (burn del tBILL del
+        //    vault + retorno del producido realizado) y recién entonces el operador fulfilea.
+        uint256 tBillHeld = tBillToken.balanceOf(address(vault));
+        uint256 proceeds = 1_050e6; // 10 tBILL x NAV 105.00000000, realizado off-chain
+        asset.mint(assetManager, proceeds - asset.balanceOf(assetManager));
+        vm.startPrank(assetManager);
+        tBillToken.burn(address(vault), tBillHeld);
+        asset.approve(address(vault), proceeds);
+        vault.divestFromTBill(proceeds);
+        vm.stopPrank();
+
+        assertEq(vault.totalAssets(), 1_050e6); // el valor sobrevive el settlement completo
 
         uint256 expectedAssets = vault.convertToAssets(shares); // documented pricing rule
         vm.prank(operator);
@@ -586,15 +601,6 @@ contract RwaVaultTest is Test {
         // Floor rounding costs Alice at most a handful of wei — never rounds in her favor.
         assertLe(fulfilledAssets, 1_050e6);
         assertApproxEqAbs(fulfilledAssets, 1_050e6, 10);
-
-        // 5) ASSET_MANAGER sells enough T-bill off-chain to raise the cash to settle —
-        //    the "settlement gap" trust assumption documented in contract NatSpec point 4.
-        uint256 shortfall = fulfilledAssets - asset.balanceOf(assetManager);
-        asset.mint(assetManager, shortfall); // stand-in for realized off-chain sale proceeds
-        vm.startPrank(assetManager);
-        asset.approve(address(vault), fulfilledAssets);
-        vault.divestFromTBill(fulfilledAssets);
-        vm.stopPrank();
 
         uint256 aliceBalanceBefore = asset.balanceOf(alice);
         vm.prank(alice);

@@ -117,6 +117,7 @@ totalAssets, devengada en `fulfill`, cobrada en shares al `feeRecipient`).
 | Role escalation | admin separado de roles operativos; `DEFAULT_ADMIN_ROLE` con transferencia en 2 pasos documentada |
 | Pausa como DoS | pausa solo bloquea requests nuevos; `claim*` y `fulfillRedeem` quedan siempre abiertos |
 | Reentrancy en claim | CEI + `nonReentrant` en flujos con transferencia (lección BotPass F0) |
+| Fulfill de redeem sin liquidez (hallazgo (c), campaña de invariantes D3) | cap on-chain: `fulfillRedeem` revierte `InsufficientLiquidity` si el claim supera `_freeAssetBuffer()` — todo claim queda 100% respaldado por asset líquido; "divest primero, fulfill después" deja de ser runbook y pasa a ser regla del contrato |
 
 ## 5. Vara de calidad (no negociable, es la firma de la casa)
 

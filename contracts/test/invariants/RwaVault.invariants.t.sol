@@ -291,15 +291,22 @@ contract RwaVaultInvariantsTest is Test {
     //     regardless of the vault's actual raw cash balance. This is the exact mirror image
     //     of hallazgo (a) (deposit-side "assets-in-transit"), but on the redeem side, and it
     //     was NOT previously called out anywhere in contract NatSpec / ARCHITECTURE.md §4.
-    //     Not fixed here (src/ is out of this task's ownership and this reads as a
-    //     trust-boundary design choice symmetric to the deposit side, not an implementation
-    //     slip) — flagged for Fable/Guille to decide: either document it explicitly next to
-    //     contract NatSpec point 4, or add a `_freeAssetBuffer()`-style cap to `fulfillRedeem`.
+    //     RESOLUCIÓN (auditoría Fable, mismo día): fix on-chain — a diferencia del lado
+    //     deposit (ventana operativa de un rol confiable), acá la víctima del gap es un
+    //     USUARIO con un claim sin respaldo. `fulfillRedeem` ahora capea por
+    //     `_freeAssetBuffer()` (error `InsufficientLiquidity`), forzando on-chain la regla
+    //     operativa real de los vaults RWA: divest primero, fulfill después. El test de
+    //     abajo quedó invertido para fijar el comportamiento nuevo.
     // =====================================================================
 
-    function test_RedeemLiquidityGap_FulfillBeyondLiquidBuffer_CreatesUnbackedClaim() public {
-        // Alice deposits and ASSET_MANAGER invests the WHOLE buffer in tBILL: value is real
-        // (NAV-backed) but no longer liquid — the vault's raw USDC balance drops to zero.
+    function test_RedeemLiquidityGap_FulfillBeyondLiquidBuffer_RevertsAfterFix() public {
+        // HISTORIA DEL HALLAZGO (c): la primera versión de este test DEMOSTRABA el gap —
+        // fulfillRedeem fijaba un claim de 1,000 USDC contra un vault con 0 USDC líquido
+        // (valor real pero ilíquido en tBILL) y el redeem posterior de Alice revertía por
+        // ERC20InsufficientBalance: una promesa sin respaldo, en la cara del usuario.
+        // La campaña de invariantes lo encontró (invariant_Solvency falló sin guardas) y
+        // la auditoría decidió fix on-chain: fulfillRedeem ahora capea por _freeAssetBuffer.
+        // Este test quedó invertido a propósito para fijar ese comportamiento.
         uint256 shares = _depositFulfillClaim(alice, 1_000e6);
         vm.prank(assetManager);
         vault.investInTBill(1_000e6);
@@ -308,24 +315,16 @@ contract RwaVaultInvariantsTest is Test {
         assertEq(asset.balanceOf(address(vault)), 0, "no liquid USDC left in the vault");
         assertEq(vault.totalAssets(), 1_000e6, "value is intact, just illiquid");
 
-        // Alice requests a full redeem. fulfillRedeem has no liquidity check — OPERATOR_ROLE
-        // can fulfill it right now even though there is not one wei of USDC to pay it out.
         vm.prank(alice);
         vault.requestRedeem(shares, alice, alice);
+
+        // El operador ya NO puede prometer lo que no hay líquido: revert explícito.
         vm.prank(operator);
-        uint256 fulfilledAssets = vault.fulfillRedeem(alice, shares);
+        vm.expectRevert(abi.encodeWithSelector(RwaVault.InsufficientLiquidity.selector, 1_000e6, 0));
+        vault.fulfillRedeem(alice, shares);
 
-        assertEq(fulfilledAssets, 1_000e6);
-        assertEq(vault.totalClaimableRedeemAssets(), 1_000e6);
-        // The literal "raw cash >= reserved" solvency reading is broken the instant this
-        // lands: the vault owes 1,000 USDC in claimable-redeem-assets but holds zero.
-        assertLt(asset.balanceOf(address(vault)), vault.totalClaimableRedeemAssets());
-
-        // Alice cannot actually get paid until ASSET_MANAGER sells tBILL back for cash — a
-        // claim attempt reverts for lack of funds (plain ERC-20 insufficient balance).
-        vm.prank(alice);
-        vm.expectRevert();
-        vault.redeem(shares, alice, alice);
+        // Y no quedó ninguna promesa colgando.
+        assertEq(vault.totalClaimableRedeemAssets(), 0, "no unbacked claim was created");
     }
 
     function test_RedeemLiquidityGap_MitigatedByDivestingBeforeFulfilling() public {
