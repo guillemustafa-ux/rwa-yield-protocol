@@ -1,5 +1,10 @@
 # RWA Yield Protocol — Subgraph
 
+**Live and indexing** (deployed 2026-07-06, synced from block 11217752, zero indexing
+errors): https://thegraph.com/studio/subgraph/rwa-yield-protocol
+
+Query endpoint: `https://api.studio.thegraph.com/query/1756185/rwa-yield-protocol/v0.0.1`
+
 Indexes the two on-chain data sources described in `ARCHITECTURE.md` §6 (D4):
 
 - **RwaVault** (`contracts/src/RwaVault.sol`) — `DepositRequest`, `RedeemRequest`,
