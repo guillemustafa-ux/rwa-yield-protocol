@@ -6,39 +6,35 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import {RwaVaultKeeper} from "../src/RwaVaultKeeper.sol";
 
-/// @title IAutomationRegistrar2_3
-/// @notice Minimal local re-declaration of `AutomationRegistrar2_3`'s external
+/// @title IAutomationRegistrar2_1
+/// @notice Minimal local re-declaration of `AutomationRegistrar2_1`'s external
 ///         surface (Sepolia registrar, real bytecode at {RegisterUpkeep-REGISTRAR}).
-/// @dev Declared locally instead of importing the installed package's own
-///      `automation/v2_3/AutomationRegistrar2_3.sol` directly on purpose: that file
-///      (and its whole import chain, down to `AutomationRegistryBase2_3.sol`) is
-///      pinned to an EXACT `pragma solidity 0.8.19;`, which conflicts with this
-///      repo's own exact pin (`0.8.24`, `foundry.toml`'s `solc_version`) — pulling
-///      it in would force a second solc install/toolchain split across the whole
-///      multi-agent repo just for one script. `RegistrationParams`'s field
-///      names/order/types below are copied
-///      verbatim from the real contract (read before writing this file, per task
-///      instructions) — `billingToken`'s type is widened from the vendored
-///      `IERC20Metadata` the real contract uses to plain OZ `IERC20` (a strict
-///      supertype covering everything this script calls: `approve`, and whatever
-///      `registerUpkeep` needs internally), which is ABI-compatible for this
-///      cross-contract call.
-interface IAutomationRegistrar2_3 {
+/// @dev CORRECTED after a live dry-run revert: `cast call typeAndVersion()` against
+///      the real deployed registrar returned "AutomationRegistrar 2.1.0", NOT 2.3 as
+///      first assumed. The field that broke everything: 2.1's `RegistrationParams`
+///      has NO `billingToken` field at all — 2.1 only bills in LINK (multi-asset
+///      billing/`billingToken` was added in 2.3). Including it shifted every field
+///      after it by one ABI slot, so the registrar decoded garbage and reverted deep
+///      inside the call. Struct order below matches the real, public
+///      `AutomationRegistrar2_1.sol` source exactly.
+///      Declared locally (not imported) for the same reason as before: the real
+///      package's registrar files are pinned to `pragma solidity 0.8.19;`, which
+///      conflicts with this repo's `0.8.24` pin.
+interface IAutomationRegistrar2_1 {
     struct RegistrationParams {
-        address upkeepContract;
-        uint96 amount;
-        address adminAddress;
-        uint32 gasLimit;
-        uint8 triggerType;
-        IERC20 billingToken;
         string name;
         bytes encryptedEmail;
+        address upkeepContract;
+        uint32 gasLimit;
+        address adminAddress;
+        uint8 triggerType;
         bytes checkData;
         bytes triggerConfig;
         bytes offchainConfig;
+        uint96 amount;
     }
 
-    function registerUpkeep(RegistrationParams memory requestParams) external payable returns (uint256);
+    function registerUpkeep(RegistrationParams memory requestParams) external returns (uint256);
 }
 
 /// @title RegisterUpkeep
@@ -57,32 +53,23 @@ interface IAutomationRegistrar2_3 {
 ///      `RedeemRequest` — two different event signatures — need two separate
 ///      registrations, both pointed at the vault's address and the same keeper.
 ///
-///      SIMULATION ONLY (per task spec — do not add `--broadcast` to the usage
-///      below). `AutomationRegistrar2_3.registerUpkeep` requires the caller to
-///      already hold, and have approved, `PLACEHOLDER_LINK_AMOUNT` of LINK per
-///      registration (`_register` -> `billingToken.safeTransferFrom(msg.sender,
-///      address(this), amount)`). The deployer (`0x40b282c45EE5667fB72b4D37a676A0110
-///      cEe36d5`) has 0 LINK today (ARCHITECTURE.md §7.3: "el deployer tiene 0 LINK
-///      hoy"), so running this script — even as a dry-run simulation against live
-///      Sepolia state via `--sender`, no key, no `--broadcast` — is EXPECTED to
-///      revert at the `transferFrom` step inside `registerUpkeep` with an ERC-20
-///      insufficient-balance/allowance error. That failure is the correct, documented
-///      outcome of a simulation with no LINK, not a bug in this script: it still
-///      proves the `RegistrationParams`/`LogTriggerConfig` wiring type-checks and
-///      ABI-encodes against the REAL, verified-by-bytecode registrar interface
-///      (ARCHITECTURE.md §7: "las tres con bytecode real, no placeholders"). Once the
-///      deployer is funded via the Sepolia LINK faucet, the exact same script (still
-///      run with `--sender` first, then for real with `--broadcast` once reviewed)
-///      completes both registrations.
+///      `AutomationRegistrar2_1.registerUpkeep` requires the caller to already hold,
+///      and have approved, `PLACEHOLDER_LINK_AMOUNT` of LINK per registration
+///      (`_register` -> `LINK.transferFrom(msg.sender, address(this), amount)`).
+///      Once the deployer is funded via the Sepolia LINK faucet, run with
+///      `--sender` first to confirm the simulation clears the ABI-decode step (a
+///      first attempt at this hit a real revert here: the registrar turned out to
+///      be v2.1, not v2.3, and v2.1's `RegistrationParams` has no `billingToken`
+///      field — see the interface's NatSpec), then for real with `--broadcast`.
 ///
 ///      Usage:
 ///        export VAULT_ADDRESS=<RwaVault proxy address> # optional, defaults below
 ///        forge script script/RegisterUpkeep.s.sol --rpc-url <SEPOLIA_RPC_URL> \
 ///          --sender 0x40b282c45EE5667fB72b4D37a676A0110cEe36d5
 contract RegisterUpkeep is Script {
-    /// @dev Chainlink Automation Registrar 2.3 on Sepolia — verified with `cast code`
-    ///      before designing against it (ARCHITECTURE.md §7): real bytecode, not a
-    ///      placeholder.
+    /// @dev Chainlink Automation Registrar on Sepolia — verified with `cast code`
+    ///      (real bytecode, not a placeholder) AND `cast call typeAndVersion()`
+    ///      (returns "AutomationRegistrar 2.1.0" — confirmed live, not assumed).
     address internal constant REGISTRAR = 0xb0E49c5D0d05cbc241d68c05BC5BA1d1B7B72976;
 
     /// @dev LINK token on Sepolia (ARCHITECTURE.md §7: "LINK `0x7798...4789`").
@@ -184,34 +171,27 @@ contract RegisterUpkeep is Script {
             topic3: bytes32(0)
         });
 
-        IAutomationRegistrar2_3.RegistrationParams memory params = IAutomationRegistrar2_3.RegistrationParams({
-            upkeepContract: keeperAddress,
-            amount: PLACEHOLDER_LINK_AMOUNT,
-            adminAddress: msg.sender,
-            gasLimit: UPKEEP_GAS_LIMIT,
-            triggerType: LOG_TRIGGER_TYPE,
-            billingToken: IERC20(LINK),
+        IAutomationRegistrar2_1.RegistrationParams memory params = IAutomationRegistrar2_1.RegistrationParams({
             name: name,
             encryptedEmail: bytes(""),
+            upkeepContract: keeperAddress,
+            gasLimit: UPKEEP_GAS_LIMIT,
+            adminAddress: msg.sender,
+            triggerType: LOG_TRIGGER_TYPE,
             checkData: bytes(""),
             triggerConfig: abi.encode(cfg),
-            offchainConfig: bytes("")
+            offchainConfig: bytes(""),
+            amount: PLACEHOLDER_LINK_AMOUNT
         });
 
-        upkeepId = IAutomationRegistrar2_3(REGISTRAR).registerUpkeep(params);
+        upkeepId = IAutomationRegistrar2_1(REGISTRAR).registerUpkeep(params);
     }
 }
 
-// BLOCKED ON LINK (ARCHITECTURE.md §7.3, documented, not an oversight): the deployer
-// address (0x40b282c45EE5667fB72b4D37a676A0110cEe36d5) holds 0 LINK on Sepolia as of
-// this writing. `run()` above WILL revert once it reaches `registerUpkeep`'s internal
-// `billingToken.safeTransferFrom(msg.sender, address(this), amount)` for exactly that
-// reason, whether invoked as a `--sender`-only dry run or (once someone tries it) with
-// `--broadcast`. Construction and tests of `RwaVaultKeeper` do NOT depend on this —
-// only the live on-chain registration does. Unblocking sequence, left for the session
-// that has the deployer's key:
-//   1. Fund the deployer with test LINK: https://faucets.chain.link/sepolia
-//   2. Re-run this script with `--broadcast` (after a plain `--sender` dry run confirms
-//      the simulation now gets past the `approve`/`transferFrom` step).
-//   3. Grant `OPERATOR_ROLE` on the vault to the freshly deployed `RwaVaultKeeper`
+// STATUS (updated after the live registrar-version fix): the deployer
+// (0x40b282c45EE5667fB72b4D37a676A0110cEe36d5) is now funded with 25 LINK on
+// Sepolia. Construction and tests of `RwaVaultKeeper` never depended on any of
+// this — only the live on-chain registration did. Remaining sequence:
+//   1. Run this script with `--broadcast` for real.
+//   2. Grant `OPERATOR_ROLE` on the vault to the freshly deployed `RwaVaultKeeper`
 //      address printed above — the upkeeps are registered but inert without it.

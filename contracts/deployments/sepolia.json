@@ -51,5 +51,49 @@
       "statePreserved": "shares del seed (1e15) + totalAssets (1000e6 dUSDC) + roles intactos post-upgrade, verificado con cast"
     }
   },
-  "seedLifecycle": "faucet 1000 dUSDC -> approve -> requestDeposit -> fulfillDeposit -> claim (5 txs status 1) ANTES del upgrade: el estado que el upgrade tenia que preservar, y preservo."
+  "seedLifecycle": "faucet 1000 dUSDC -> approve -> requestDeposit -> fulfillDeposit -> claim (5 txs status 1) ANTES del upgrade: el estado que el upgrade tenia que preservar, y preservo.",
+  "f3LiveActivation": {
+    "date": "2026-07-07",
+    "what": "Chainlink Automation (log-trigger) + CCIP cross-chain deposit encendidos en vivo con LINK real de testnet (25 LINK en Sepolia + 25 en Arbitrum Sepolia).",
+    "RwaVaultKeeper": {
+      "address": "0xA260e5614f85573baC7Ab83487Fa8425db007E25",
+      "note": "Deployado por script/RegisterUpkeep.s.sol. Tiene OPERATOR_ROLE en el proxy (verificado con cast hasRole -> true)."
+    },
+    "automationUpkeeps": {
+      "registrar": "0xb0E49c5D0d05cbc241d68c05BC5BA1d1B7B72976",
+      "registrarVersion": "AutomationRegistrar 2.1.0 (confirmado con typeAndVersion() — no 2.3, RegistrationParams sin billingToken)",
+      "depositRequestUpkeepId": "112595769480916896494387911308636691735539928830243869910881690145514775005662",
+      "redeemRequestUpkeepId": "108129696599815390181158521457433630849823665853314984103586117881783981574404",
+      "fundedPerUpkeep": "5 LINK",
+      "status": "Registrados y auto-aprobados (verificado via logs RegistrationApproved/UpkeepRegistered/FundsAdded), no en cola manual."
+    },
+    "crossChainDepositRelay": {
+      "address": "0xDC5C24Ff3c0B474BB915133D18Cb5506d55554B6",
+      "chain": "sepolia",
+      "note": "Deployado por script/DeployRelay.s.sol, fondeado con dUSDC, allowlist habilitada para el sender de Arbitrum Sepolia."
+    },
+    "crossChainDepositSender": {
+      "address": "0xdC8530184b633Dca44A0e8C48C394Fb670Ac921f",
+      "chain": "arbitrum-sepolia",
+      "note": "Deployado directo con forge create, fondeado con LINK para el fee de CCIP."
+    },
+    "ccipMessage": {
+      "messageId": "0x760fcda38ac717d7a01960cf839bf36ca8a788358f9d45580067a36e90ea982c",
+      "from": "arbitrum-sepolia",
+      "to": "sepolia",
+      "assets": "50 dUSDC (50000000, 6 dec)",
+      "controller": "0x40b282c45EE5667fB72b4D37a676A0110cEe36d5",
+      "deliveryTime": "~22 minutos (CCIP testnet), confirmado por pending pasando de 0 a 50000000 en el poll"
+    },
+    "automationOutcome": {
+      "result": "MANUAL_FALLBACK",
+      "detail": "checkLog() probado matematicamente correcto via simulacion directa (cast call con Log sintetico) — devuelve upkeepNeeded=true con performData correcto. Los upkeeps quedaron registrados, fondeados y auto-aprobados. Pese a eso, la red de nodos de Chainlink Automation NO llamo performUpkeep en ~70 minutos de polling (dos watchers, 40min + 30min). Causa mas probable: latencia/confiabilidad de la red de Automation en testnet, no un defecto de los contratos.",
+      "manualPerformUpkeepTx": "0xad71a503f9de153a1a0fdfee356db58d595be389dd309812567bb620b1cea20d",
+      "note": "performUpkeep es permissionless por diseno del estandar Chainlink — se llamo a mano con el mismo performData ya validado por la simulacion, sin bypassear ninguna logica del contrato."
+    },
+    "claimDeposit": {
+      "txHash": "0x2ffb764fb3bf8213672202107ed201bd84f20a8fd5b9ba7476bcc37eaf998831",
+      "what": "deposit(50000000, controller, controller) — reclamo de las shares tras el fulfill, cierra el ciclo con shares reales en la wallet del deployer."
+    }
+  }
 }
