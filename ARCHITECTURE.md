@@ -169,3 +169,73 @@ chain, nunca contra el reporte del agente.
 - `vm.warp` base: timestamp local arranca en 1 → warpear en setUp.
 - Node para reemplazos de strings en archivos (sed/heredoc rompen quoting).
 - Prohibido `taskkill /F /IM node.exe` global en agentes (mata procesos ajenos).
+
+## 7. F3 — Integraciones de producción (2026-07-06, sobre el flagship ya desplegado)
+
+> Del roadmap (`plan-aprendizaje-eth-sol-70-30.md`): "agregar Chainlink Automation
+> (cumplir requests del vault automáticamente) y una prueba de cross-chain (CCIP) —
+> depositar en el vault desde otra testnet". Hito: el protocolo deja de necesitar un
+> humano apretando botones para operar día a día. Direcciones Chainlink en Sepolia
+> verificadas con `cast code` antes de diseñar contra ellas (LINK `0x7798...4789`,
+> Router CCIP `0x0BF3...3A59`, Automation Registrar `0xb0E4...2976` — las tres con
+> bytecode real, no placeholders).
+
+### 7.1 `RwaVaultKeeper.sol` — Chainlink Automation (log-trigger, no polling)
+
+**Decisión de diseño**: NO se usa un upkeep "custom logic" con scan on-chain de
+pendientes — `RwaVault` no expone (a propósito, no se tocó el contrato ya
+desplegado) una lista enumerable de controllers con requests abiertos, y agregar
+una rompería la superficie ya auditada. En cambio, el keeper es un **log-trigger
+upkeep**: Chainlink Automation lo despierta directamente por cada evento
+`DepositRequest`/`RedeemRequest` que emite el vault — sin polling, sin necesitar
+enumeración on-chain.
+
+- `checkLog(Log calldata log, bytes memory)`: decodifica `controller` y
+  `assets`/`shares` del log, y VERIFICA de forma independiente (leyendo solo
+  getters públicos del vault: `pendingDepositRequest`/`pendingRedeemRequest`,
+  `totalPendingDepositAssets`, `totalClaimableRedeemAssets`, `asset().balanceOf`)
+  que: (a) el request sigue pendiente (no se liquidó ya por otra vía), y (b) hay
+  buffer libre suficiente para liquidarlo sin pisar el chequeo `InsufficientLiquidity`
+  del vault. Si ambas se cumplen, `upkeepNeeded=true` con `performData` = (acción,
+  controller, monto).
+- `performUpkeep(bytes calldata performData)`: llama `fulfillDeposit`/`fulfillRedeem`
+  en el vault. Este contrato debe tener `OPERATOR_ROLE` otorgado — la automatización
+  es, literalmente, "un bot con el rol de operador".
+- **Re-chequeo obligatorio dentro de `performUpkeep`, no solo en `checkLog`**: entre
+  la simulación off-chain de `checkLog` y la ejecución real puede pasar tiempo (o un
+  reorg); `performUpkeep` repite el chequeo de buffer antes de llamar al vault. Nunca
+  confiar ciegamente en lo que decidió el simulador — mismo principio que ya aplicó
+  `fulfillRedeem` con el hallazgo (c) del D3.
+- No requiere upgrade del vault: el keeper es 100% código nuevo, aditivo.
+
+### 7.2 CCIP — depósito disparado desde otra testnet
+
+**Decisión de diseño (documentada como trade-off explícito, no como bug)**: esto es
+**mensajería CCIP, no un token bridge real**. `DemoUSDC` es un ERC-20 de demo que
+vive solo en Sepolia — bridgear el activo de verdad requeriría registrar un CCIP
+Token Pool (proceso permisionado, fuera de alcance de una demo). En cambio:
+
+- `CrossChainDepositSender.sol` (Arbitrum Sepolia, misma chain que BotPassNFT):
+  `sendDeposit(uint256 assets)` arma un mensaje CCIP `(msg.sender, assets)` hacia el
+  receiver de Sepolia, paga el fee en LINK.
+- `CrossChainDepositRelay.sol` (Sepolia, `CCIPReceiver`): recibe el mensaje,
+  valida que el `sourceChainSelector`+sender estén en un allowlist, y ejecuta
+  `requestDeposit(assets, controller, address(this))` contra el vault usando un
+  **balance de DemoUSDC pre-fondeado que el relay mantiene** (el deployer lo carga
+  vía `faucet()`, capado igual que cualquier otro uso de DemoUSDC). Documentado sin
+  vueltas en el propio contrato: en producción esto sería un Token Pool real
+  liberando el activo bridgeado, acá es una demo de "el mensaje cruza la chain y
+  dispara la acción correcta" — la mecánica que importa para el aprendizaje.
+- Allowlist de sender+chain selector: sin eso, cualquiera podría gastar el balance
+  pre-fondeado del relay — el mismo principio de "no confiar en el input" que el
+  resto del protocolo.
+
+### 7.3 Plan de construcción
+
+Igual modalidad sandwich: agentes Sonnet en paralelo (keeper / CCIP sender+receiver),
+todo con tests offline (mocks del `Log` struct de Automation y del router CCIP —
+Chainlink provee mocks oficiales para ambos, `CCIPLocalSimulator` para CCIP).
+Fable verifica y hace el broadcast real después. **Bloqueo real**: el registro en
+vivo del upkeep (vía `AutomationRegistrar`) y el envío real de un mensaje CCIP
+consumen LINK — el deployer tiene 0 LINK hoy. Construcción y tests NO dependen de
+eso; el registro/envío en vivo sí, y queda pendiente de faucet.
