@@ -26,8 +26,9 @@ function parseAmount(raw: string, decimals: number | undefined): bigint | undefi
 }
 
 /**
- * `OPERATOR_ROLE`: cola de pending por controller (lookup por address — no
- * hay indexer wireado en esta dApp, D4/subgraph es tema aparte) +
+ * `OPERATOR_ROLE`: cola de pending por controller (lookup por address, lectura
+ * on-chain directa; el historial indexado del ciclo de vida vive en la página
+ * `/activity`, alimentada por el subgraph) +
  * fulfillDeposit/fulfillRedeem, con el aviso del cap `InsufficientLiquidity`
  * (ARCHITECTURE.md §4, hallazgo (c) de invariantes D3) y el buffer libre de
  * USDC visible ANTES de firmar.

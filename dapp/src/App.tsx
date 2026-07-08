@@ -5,6 +5,7 @@ import { Home } from './pages/Home'
 import { Vault } from './pages/Vault'
 import { Admin } from './pages/Admin'
 import { CrossChain } from './pages/CrossChain'
+import { Activity } from './pages/Activity'
 
 /**
  * Rutas de la dApp. `/cross-chain` cuenta la historia F3 (CCIP + Automation)
@@ -17,6 +18,7 @@ export default function App(): JSX.Element {
         <Route index element={<Home />} />
         <Route path="vault" element={<Vault />} />
         <Route path="cross-chain" element={<CrossChain />} />
+        <Route path="activity" element={<Activity />} />
         <Route path="admin" element={<Admin />} />
       </Route>
     </Routes>

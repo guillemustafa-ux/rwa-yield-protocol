@@ -21,8 +21,8 @@ operar; el resto es read-only.
 | `RwaNavFeed` | Oráculo de NAV, implementa `AggregatorV3Interface` (Chainlink) completo. `updateNav` con banda de desviación ±5% y rate limit de 1 update/hora — mitiga fat-finger y compromiso de key. |
 | `RwaVault` (V1) | ERC-7540 async vault: `requestDeposit/Redeem` → `fulfillDeposit/Redeem` (operador, precio fijado ahí) → `claim`. UUPS upgradeable, `AccessControl` con 4 roles separados, pausa parcial. |
 | `RwaVaultV2` | Mismo vault + management fee (100 bps anual, devengada en shares). Es el código que corre HOY detrás del proxy — llegó ahí por un upgrade real, no por un redeploy. |
-| Subgraph (The Graph Studio) | Indexa `DepositRequest`/`RedeemRequest`/`DepositFulfilled`/`RedeemFulfilled`/`NavUpdated`. |
-| dApp (Vite + React + wagmi) | Flujo request → pending → claimable → claim, panel de NAV, página **Cross-chain** (CCIP + Automation, con la evidencia F3 en vivo), panel admin. Deployada: [rwa-yield-protocol.vercel.app](https://rwa-yield-protocol.vercel.app). |
+| Subgraph (The Graph Studio) | Indexa `DepositRequest`/`RedeemRequest`/`DepositFulfilled`/`RedeemFulfilled`/`NavUpdated`. Consumido por la dApp en la página **Actividad** (GraphQL, sin backend propio). |
+| dApp (Vite + React + wagmi) | Flujo request → pending → claimable → claim, panel de NAV, página **Cross-chain** (CCIP + Automation, con la evidencia F3 en vivo), página **Actividad** (historial on-chain leído del subgraph) y panel admin. Deployada: [rwa-yield-protocol.vercel.app](https://rwa-yield-protocol.vercel.app). |
 
 Diseño completo con el porqué de cada decisión: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 Trade-offs, self-audit y la historia de los 3 hallazgos de la auditoría: [`DESIGN.md`](./DESIGN.md).
