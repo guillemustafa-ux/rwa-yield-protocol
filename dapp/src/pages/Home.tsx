@@ -44,6 +44,9 @@ export function Home(): JSX.Element {
           <Link to="/vault" className={buttonClassName('primary', 'md')}>
             Ir al vault
           </Link>
+          <Link to="/cross-chain" className="text-sm font-medium text-accent-strong hover:underline">
+            Depósito cross-chain (CCIP + Automation) →
+          </Link>
           <a
             href={etherscanTxUrl(LIVE_UPGRADE_TX_HASH)}
             target="_blank"

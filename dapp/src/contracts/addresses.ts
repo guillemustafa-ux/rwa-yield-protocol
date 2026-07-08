@@ -58,3 +58,48 @@ export function etherscanTxUrl(hash: string): string {
 export function etherscanAddressUrl(address: string): string {
   return `${BLOCK_EXPLORER_URL}/address/${address}`
 }
+
+/**
+ * F3 — activación en vivo de Chainlink Automation (log-trigger keeper) + CCIP
+ * cross-chain deposit (2026-07-07). Todos los valores salen de
+ * `contracts/deployments/sepolia.json` → `f3LiveActivation`. Hardcodeados por
+ * el mismo motivo que el resto de este archivo (Vite solo empaqueta lo que vive
+ * dentro de `dapp/`).
+ *
+ * El diseño es CCIP *messaging*, no un token bridge: el mensaje cross-chain
+ * lleva solo `(controller, assets)`; el relay gasta su propio balance de dUSDC
+ * pre-fondeado para llamar `requestDeposit` en el vault. Trade-off documentado
+ * a propósito (ARCHITECTURE.md §7.2), no un bug.
+ */
+export const ARBISCAN_SEPOLIA_URL = 'https://sepolia.arbiscan.io'
+
+export const F3 = {
+  /** Keeper con OPERATOR_ROLE en el proxy (log-trigger Automation). Sepolia. */
+  keeper: '0xA260e5614f85573baC7Ab83487Fa8425db007E25',
+  /** Recibe el mensaje CCIP y dispara requestDeposit con su propio dUSDC. Sepolia. */
+  relay: '0xDC5C24Ff3c0B474BB915133D18Cb5506d55554B6',
+  /** Origina el mensaje CCIP. Vive en Arbitrum Sepolia (otra chain). */
+  sender: '0xdC8530184b633Dca44A0e8C48C394Fb670Ac921f',
+  /** Registrar de Automation 2.1.0 usado para dar de alta los upkeeps. Sepolia. */
+  registrar: '0xb0E49c5D0d05cbc241d68c05BC5BA1d1B7B72976',
+  /** IDs de los dos upkeeps log-trigger registrados, fondeados y auto-aprobados. */
+  depositUpkeepId: '112595769480916896494387911308636691735539928830243869910881690145514775005662',
+  redeemUpkeepId: '108129696599815390181158521457433630849823665853314984103586117881783981574404',
+  /** El mensaje CCIP real: Arbitrum Sepolia → Sepolia, 50 dUSDC. */
+  ccipMessageId: '0x760fcda38ac717d7a01960cf839bf36ca8a788358f9d45580067a36e90ea982c',
+  ccipAssets: '50 dUSDC',
+  ccipDeliveryTime: '~22 min',
+  /** Cierre del ciclo: performUpkeep manual (permissionless) + claim de shares. */
+  manualPerformUpkeepTx: '0xad71a503f9de153a1a0fdfee356db58d595be389dd309812567bb620b1cea20d',
+  claimDepositTx: '0x2ffb764fb3bf8213672202107ed201bd84f20a8fd5b9ba7476bcc37eaf998831',
+} as const
+
+/** Link al explorador de CCIP para un messageId (traza el mensaje cross-chain end-to-end). */
+export function ccipMessageUrl(messageId: string): string {
+  return `https://ccip.chain.link/msg/${messageId}`
+}
+
+/** Link a Arbiscan (Arbitrum Sepolia) para una address — el sender vive en esa chain. */
+export function arbiscanAddressUrl(address: string): string {
+  return `${ARBISCAN_SEPOLIA_URL}/address/${address}`
+}
