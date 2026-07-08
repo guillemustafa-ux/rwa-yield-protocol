@@ -39,6 +39,9 @@ export function Header(): JSX.Element {
           <NavLink to="/activity" className={navLinkClass}>
             Actividad
           </NavLink>
+          <NavLink to="/analytics" className={navLinkClass}>
+            Analytics
+          </NavLink>
           <NavLink to="/admin" className={navLinkClass}>
             Admin
           </NavLink>
