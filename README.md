@@ -9,6 +9,10 @@ No es un vault balance-based como un ERC-4626 estándar: el precio de la share s
 un NAV feed compatible con Chainlink, no del balance propio del contrato. Nadie
 transfiere yield adentro — el NAV subiendo *es* el yield.
 
+**▶ Demo en vivo:** https://rwa-yield-protocol.vercel.app — dApp contra los contratos
+en Sepolia (Overview · Vault · Cross-chain · Admin). Conectá una wallet en Sepolia para
+operar; el resto es read-only.
+
 ## Qué hay acá
 
 | Pieza | Qué hace |
@@ -18,7 +22,7 @@ transfiere yield adentro — el NAV subiendo *es* el yield.
 | `RwaVault` (V1) | ERC-7540 async vault: `requestDeposit/Redeem` → `fulfillDeposit/Redeem` (operador, precio fijado ahí) → `claim`. UUPS upgradeable, `AccessControl` con 4 roles separados, pausa parcial. |
 | `RwaVaultV2` | Mismo vault + management fee (100 bps anual, devengada en shares). Es el código que corre HOY detrás del proxy — llegó ahí por un upgrade real, no por un redeploy. |
 | Subgraph (The Graph Studio) | Indexa `DepositRequest`/`RedeemRequest`/`DepositFulfilled`/`RedeemFulfilled`/`NavUpdated`. |
-| dApp (Vite + React + wagmi) | Flujo request → pending → claimable → claim, panel de NAV, panel admin. |
+| dApp (Vite + React + wagmi) | Flujo request → pending → claimable → claim, panel de NAV, página **Cross-chain** (CCIP + Automation, con la evidencia F3 en vivo), panel admin. Deployada: [rwa-yield-protocol.vercel.app](https://rwa-yield-protocol.vercel.app). |
 
 Diseño completo con el porqué de cada decisión: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 Trade-offs, self-audit y la historia de los 3 hallazgos de la auditoría: [`DESIGN.md`](./DESIGN.md).
