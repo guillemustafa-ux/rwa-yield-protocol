@@ -1,17 +1,22 @@
 import type { JSX } from 'react'
+import { keccak256, toBytes } from 'viem'
 import { useAccount, useReadContracts } from 'wagmi'
 import { useVaultData } from '../hooks/useVaultData'
 import { StatCard } from '../components/ui/StatCard'
 import { DepositFlow } from '../components/vault/DepositFlow'
 import { RedeemFlow } from '../components/vault/RedeemFlow'
 import { NavSidePanel } from '../components/vault/NavSidePanel'
-import { CONTRACT_ADDRESSES, VAULT_ADDRESS } from '../contracts/addresses'
+import { ProtocolMechanicsPanel } from '../components/vault/ProtocolMechanicsPanel'
+import { CONTRACT_ADDRESSES, F3, VAULT_ADDRESS } from '../contracts/addresses'
 import { RwaVaultV2Abi } from '../contracts/abis/RwaVaultV2'
 import { DemoUSDCAbi } from '../contracts/abis/DemoUSDC'
 import { formatTokenAmount } from '../lib/format'
 
 const ASSET_ADDRESS = CONTRACT_ADDRESSES.DemoUSDC
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
+
+/** `keccak256("OPERATOR_ROLE")` — el identificador del rol tal como lo define el contrato. */
+const OPERATOR_ROLE = keccak256(toBytes('OPERATOR_ROLE'))
 
 /** Devuelve el valor de un read de `useReadContracts` solo si resolvió OK — `undefined` si no. */
 function ok<T>(r: { status: string; result?: T } | undefined): T | undefined {
@@ -65,11 +70,25 @@ export function Vault(): JSX.Element {
   })
   const [userSharesValueRead] = shareValueReads.data ?? []
 
+  // Mecánicas del protocolo que el flujo request→claim no muestra: fee V2 +
+  // confirmación on-chain de que el keeper del F3 tiene OPERATOR_ROLE cableado.
+  const mechanicsReads = useReadContracts({
+    contracts: [
+      { address: VAULT_ADDRESS, abi: RwaVaultV2Abi, functionName: 'feeRecipient' },
+      { address: VAULT_ADDRESS, abi: RwaVaultV2Abi, functionName: 'lastFeeAccrual' },
+      { address: VAULT_ADDRESS, abi: RwaVaultV2Abi, functionName: 'MAX_FEE_BPS' },
+      { address: VAULT_ADDRESS, abi: RwaVaultV2Abi, functionName: 'hasRole', args: [OPERATOR_ROLE, F3.keeper] },
+    ],
+    query: { refetchInterval: 20_000 },
+  })
+  const [feeRecipientRead, lastFeeAccrualRead, maxFeeBpsRead, keeperHasRoleRead] = mechanicsReads.data ?? []
+
   function refetchAll(): void {
     vaultData.refetch()
     void staticReads.refetch()
     void userAssetReads.refetch()
     void shareValueReads.refetch()
+    void mechanicsReads.refetch()
   }
 
   const isLoading = vaultData.isLoading
@@ -166,6 +185,17 @@ export function Vault(): JSX.Element {
           userSharesValueAssets={ok(userSharesValueRead)}
         />
       </div>
+
+      <ProtocolMechanicsPanel
+        managementFeeBps={vaultData.managementFeeBps}
+        maxFeeBps={ok(maxFeeBpsRead)}
+        feeRecipient={ok(feeRecipientRead)}
+        lastFeeAccrual={ok(lastFeeAccrualRead)}
+        totalAssets={vaultData.totalAssets}
+        assetDecimals={vaultData.assetDecimals}
+        keeperHasOperatorRole={ok(keeperHasRoleRead)}
+        onAccrued={refetchAll}
+      />
     </div>
   )
 }
