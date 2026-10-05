@@ -24,6 +24,10 @@ operar; el resto es read-only.
 | Subgraph (The Graph Studio) | Indexa `DepositRequest`/`RedeemRequest`/`DepositFulfilled`/`RedeemFulfilled`/`NavUpdated`. Consumido por la dApp en la página **Actividad** (GraphQL, sin backend propio). |
 | dApp (Vite + React + wagmi) | Flujo request → pending → claimable → claim, panel de NAV, página **Cross-chain** (CCIP + Automation, con la evidencia F3 en vivo), página **Actividad** (historial on-chain leído del subgraph) y panel admin. Deployada: [rwa-yield-protocol.vercel.app](https://rwa-yield-protocol.vercel.app). |
 
+> **tBILL (`TBillToken`) es un token de demo.** Es un T-bill sintético sin respaldo,
+> custodio ni valor real: existe para reproducir la mecánica técnica (NAV feed → vault
+> asíncrono ERC-7540), no representa un activo regulado. Lo mismo vale para `DemoUSDC`.
+
 Diseño completo con el porqué de cada decisión: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 Trade-offs, self-audit y la historia de los 3 hallazgos de la auditoría: [`DESIGN.md`](./DESIGN.md).
 
@@ -75,11 +79,11 @@ el estado — shares del seed (1e15), `totalAssets()` (1000e6 dUSDC), y los 4 ro
 operativos — sobrevivió intacto. Eso es lo que hace a UUPS distinto de "redeployar de
 nuevo": el contrato lógico cambió, la cuenta que todos usan no.
 
-> Nota de verificación: `contracts/deployments/sepolia.json` trae estas dos tx hashes
-> cruzadas entre los campos `liveUpgrade.txHash` y `RwaVaultV2_implementation.txHash`
-> (ambas del mismo broadcast, un índice de diferencia). Los comandos de abajo usan la
-> tx correcta para cada afirmación — verificado leyendo `to`/`contractAddress`/logs de
-> cada receipt, no el campo del JSON.
+> Nota de verificación: en `contracts/deployments/sepolia.json`, `liveUpgrade.txHash` es
+> la tx 2 (la llamada `upgradeToAndCall` sobre el proxy) y
+> `RwaVaultV2_implementation.txHash` es la tx 1 (el deploy de la implementación V2).
+> Una versión anterior del JSON las tenía cruzadas; se corrigió en el commit `1891808`.
+> Los comandos de abajo usan esos mismos hashes.
 
 ### Cómo verificarlo vos mismo (copy-paste, requiere `cast` — Foundry)
 
